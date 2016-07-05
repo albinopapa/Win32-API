@@ -8,6 +8,7 @@ public:
 	AniSprite( const std::wstring &Basename, uint32_t FrameCount, float HoldTime, const Direct2D &D2d );
 	~AniSprite();
 
+	void ResetAnimation();
 	void Advance(float FrameTime);
 	void Draw( const Utilities::PointF &Position, const Graphics &Gfx );
 	void DrawMirrored( const Utilities::PointF &Position, const Graphics &Gfx );

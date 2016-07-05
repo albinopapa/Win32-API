@@ -27,14 +27,22 @@ AniSprite::AniSprite( const std::wstring & Basename, uint32_t FrameCount,
 AniSprite::~AniSprite()
 {}
 
+void AniSprite::ResetAnimation()
+{
+	cur_hold_time = 0.0f;
+	cur_frame = 0;
+}
+
 void AniSprite::Advance( float FrameTime )
 {
 	cur_hold_time += FrameTime;
 	if( cur_hold_time >= hold_time )
 	{
 		++cur_frame;
-		cur_frame %= num_frames;
-		cur_hold_time = 0.0f;
+		if( cur_frame == num_frames )
+		{
+			ResetAnimation();
+		}
 	}
 }
 

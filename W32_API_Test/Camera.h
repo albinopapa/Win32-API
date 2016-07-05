@@ -1,14 +1,15 @@
 #pragma once
 
-#include <Utilities.h>
+#include "CollisionRect.h"
+
 class Camera
 {
 public:
 	Camera(const Utilities::PointF &StartPosition, const Utilities::SizeU &ViewSize);
 	~Camera();
 
-	void Update( const Utilities::RectU &Bounds, const Utilities::PointF &FocalPoint );
-	Utilities::RectU GetViewRect()const;
+	void Update( const cRectU &Bounds, const Utilities::PointF &FocalPoint );
+	cRectU GetViewRect()const;
 private:
 	Utilities::PointF position;
 	Utilities::SizeU size;

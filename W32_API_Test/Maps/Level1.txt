@@ -1,8 +1,8 @@
-100
+100                                                                                                
 18
-                                                           NFFFFFFFN                               
-                                                           W       W                               
-                                                           W       W                               
+                                                           NFFFFFFFN                             
+                                                           W       W                             
+                                                           W       W                              
                                                            W       W                               
                                                            W       W                               
                                     N                      W       W                               
@@ -10,7 +10,7 @@
                                     W                      W       W                               
                                     W                      W       W                               
                              FFFFFFFFFFFFFF                W       W                               
-                                                           NCCCCCCCN                               
+                                                           NCCCCCCCN                             
                                                                                                    
                                                                                                    
 FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFN    NFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF

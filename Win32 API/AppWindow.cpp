@@ -55,6 +55,11 @@ BOOL AppWindow::IsCreated() const
 	return hwnd != nullptr;
 }
 
+Utilities::SizeU AppWindow::Size() const
+{
+	return size;
+}
+
 AppWindow::~AppWindow()
 {
 	UnregisterClass( classname.c_str(), hInst );

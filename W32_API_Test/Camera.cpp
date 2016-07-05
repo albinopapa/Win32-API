@@ -12,30 +12,21 @@ Camera::Camera( const Utilities::PointF &StartPosition, const Utilities::SizeU &
 Camera::~Camera()
 {}
 
-void Camera::Update( const Utilities::RectU &Bounds, 
+void Camera::Update( const cRectU &Bounds,
 	const Utilities::PointF & FocalPoint )
 {
-	position.x = 
-		static_cast<float>( 
-			static_cast<int32_t>( FocalPoint.x ) - 
-			static_cast<int32_t>( size.width / 2 ) 
-			);
-
-	position.y = 
-		static_cast<float>( 
-			static_cast<int32_t>( FocalPoint.y ) - 
-			static_cast<int32_t>( size.width / 2 ) 
-			);
-
-	position.x = max( 0, min( position.x, Bounds.Right() - size.width ) );
-	position.y = max( 0, min( position.y, Bounds.Bottom() - size.height ) );
+	position.x = ( FocalPoint.x - ( static_cast<float>( size.width ) * 0.5f ) );
+	position.y = ( FocalPoint.y - ( static_cast<float>( size.height ) * 0.5f ) );
+		
+	position.x = max( 0.f, min( position.x, Bounds.Right() - size.width - 31.f ) );
+	position.y = max( 0.f, min( position.y, Bounds.Bottom() - size.height - 31.f ) );
 }
 
-Utilities::RectU Camera::GetViewRect() const
+cRectU Camera::GetViewRect() const
 {
-	auto point_u = Utilities::PointU(
-		static_cast<uint32_t>( position.x ),
-		static_cast<uint32_t>( position.y ) );
+	auto point = Utilities::PointU(
+		static_cast<uint32_t>( position.x + 0.5f ),
+		static_cast<uint32_t>( position.y + 0.5f ) );
 
-	return Utilities::RectU( point_u, size );
+	return{point, size};
 }

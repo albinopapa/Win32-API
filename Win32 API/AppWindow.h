@@ -21,6 +21,7 @@ public:
 		const Utilities::SizeU &WinSize = {800, 600} )override;
 	void RegisterApp( Application *App )override;
 	BOOL IsCreated()const;
+	Utilities::SizeU Size()const override;
 private:
 	std::wstring classname, wintitle;
 	Utilities::PointU position;

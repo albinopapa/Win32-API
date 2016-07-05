@@ -149,7 +149,9 @@
   <ItemGroup>
     <ClInclude Include="AniSprite.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="CollisionRect.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="GameObject.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="Jesse.h" />
     <ClInclude Include="Keyboard.h" />
@@ -173,6 +175,9 @@
     <ClCompile Include="System.cpp" />
     <ClCompile Include="Tile.cpp" />
     <ClCompile Include="TileMap.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Level1.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

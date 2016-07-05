@@ -1,5 +1,6 @@
 #include "Graphics.h"
 #include <assert.h>
+#include <vector>
 
 Graphics::Graphics( const AppWindow &Win )
 	:
@@ -7,6 +8,18 @@ Graphics::Graphics( const AppWindow &Win )
 {
 	pState = d2d.CreateDrawingStateBlock();
 	brush = d2d.CreateSolidColorBrush();
+	
+	// Create sky gradients
+	{
+		// Setup variables
+		std::vector<D2D1_GRADIENT_STOP> stops;
+		stops.push_back( D2D1::GradientStop( 0.f, D2D1::ColorF( D2D1::ColorF::Black,0.f ) ) );
+		stops.push_back( D2D1::GradientStop( 1.0f, D2D1::ColorF( D2D1::ColorF::White ) ) );
+
+		auto stop_coll = d2d.CreateGradientStopCollection( stops );
+		lingrad_brush = d2d.CreateLinearGradientBrush( stop_coll.Get(),
+			Utilities::RectF( 0.f, 0.f, 0.f, Win.Size().height ) );
+	}
 }
 
 
@@ -18,7 +31,7 @@ const Direct2D & Graphics::GetDirect2D() const
 	return d2d;
 }
 
-void Graphics::BeginFrame( const D2D1::ColorF & Color )
+void Graphics::BeginFrame( const D2D1::ColorF Color )
 {
 	auto context = d2d.GetContext();
 
@@ -38,10 +51,17 @@ void Graphics::EndFrame()
 	assert( SUCCEEDED( hr ) );
 }
 
-void Graphics::DrawFilledRect( const Utilities::RectU & Rect, const D2D1::ColorF & Color ) const
+void Graphics::DrawGradientRect( const Utilities::RectF & Rect, const D2D1::ColorF Start, const D2D1::ColorF Stop )
 {
 	auto context = d2d.GetContext();
-	D2D1_RECT_F rect(Rect);
+	D2D1_RECT_F rect( Rect );
+	context->FillRectangle( rect, lingrad_brush.Get() );
+}
+
+void Graphics::DrawFilledRect( const Utilities::RectF & Rect, const D2D1::ColorF & Color ) const
+{
+	auto context = d2d.GetContext();
+	D2D1_RECT_F rect( Rect );
 	brush->SetColor( Color );
 	context->FillRectangle( rect, brush.Get());
 }

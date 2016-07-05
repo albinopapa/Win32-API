@@ -1,7 +1,7 @@
 /****************************************************************************************** 
- *	Chili DirectX Framework Version 12.10.21											  *	
- *	Mouse.cpp																		  *
- *	Copyright 2012 PlanetChili <http://www.planetchili.net>								  *
+ *	Chili DirectX Framework Version 14.03.22											  *	
+ *	Mouse.cpp																			  *
+ *	Copyright 2014 PlanetChili <http://www.planetchili.net>								  *
  *																						  *
  *	This file is part of The Chili DirectX Framework.									  *
  *																						  *
@@ -20,67 +20,102 @@
  ******************************************************************************************/
 #include "Mouse.h"
 
-MouseClient::MouseClient( const MouseServer& server )
-: server( server )
-{}
-int MouseClient::GetMouseX() const
-{
-	return server.x;
-}
-int MouseClient::GetMouseY() const
-{
-	return server.y;
-}
-bool MouseClient::LeftIsPressed() const
-{
-	return server.leftIsPressed;
-}
-bool MouseClient::RightIsPressed() const
-{
-	return server.rightIsPressed;
-}
-bool MouseClient::IsInWindow() const
-{
-	return server.isInWindow;
-}
 
-MouseServer::MouseServer()
-:	isInWindow( false ),
-	leftIsPressed( false ),
-	rightIsPressed( false ),
-	x( -1 ),
-	y( -1 )
-{}
-void MouseServer::OnMouseMove( int x,int y )
+std::pair<int,int> Mouse::GetPos() const
 {
-	this->x = x;
-	this->y = y;
+	return { x,y };
 }
-void MouseServer::OnMouseLeave()
+bool Mouse::LeftIsPressed() const
+{
+	return leftIsPressed;
+}
+bool Mouse::RightIsPressed() const
+{
+	return rightIsPressed;
+}
+bool Mouse::IsInWindow() const
+{
+	return isInWindow;
+}
+Mouse::Event Mouse::ReadMouse()
+{
+	if( buffer.size() > 0u )
+	{
+		Mouse::Event e = buffer.front();
+		buffer.pop();
+		return e;
+	}
+	else
+	{
+		return Mouse::Event( Mouse::Event::Invalid,0,0 );
+	}
+}
+bool Mouse::BufferIsEmpty() const
+{
+	return buffer.empty( );
+}
+void Mouse::ClearBuffer()
+{
+	std::swap( buffer,std::queue<Event>() );
+}
+void Mouse::OnMouseLeave()
 {
 	isInWindow = false;
 }
-void MouseServer::OnMouseEnter()
+void Mouse::OnMouseEnter()
 {
 	isInWindow = true;
 }
-void MouseServer::OnLeftPressed()
+void Mouse::OnMouseMove( int newx,int newy )
+{
+	x = newx;
+	y = newy;
+
+	buffer.push( Mouse::Event( Mouse::Event::Move,x,y ) );
+	TrimBuffer();
+}
+void Mouse::OnLeftPressed( int x,int y )
 {
 	leftIsPressed = true;
+
+	buffer.push( Mouse::Event( Mouse::Event::LPress,x,y ) );
+	TrimBuffer();
 }
-void MouseServer::OnLeftReleased()
+void Mouse::OnLeftReleased( int x,int y )
 {
 	leftIsPressed = false;
+
+	buffer.push( Mouse::Event( Mouse::Event::LRelease,x,y ) );
+	TrimBuffer();
 }
-void MouseServer::OnRightPressed()
+void Mouse::OnRightPressed( int x,int y )
 {
 	rightIsPressed = true;
+
+	buffer.push( Mouse::Event( Mouse::Event::RPress,x,y ) );
+	TrimBuffer();
 }
-void MouseServer::OnRightReleased()
+void Mouse::OnRightReleased( int x,int y )
 {
 	rightIsPressed = false;
+
+	buffer.push( Mouse::Event( Mouse::Event::RRelease,x,y ) );
+	TrimBuffer();
 }
-bool MouseServer::IsInWindow() const
+void Mouse::OnWheelUp( int x,int y )
 {
-	return isInWindow;
+	buffer.push( Mouse::Event( Mouse::Event::WheelUp,x,y ) );
+	TrimBuffer();
+}
+void Mouse::OnWheelDown( int x,int y )
+{
+	buffer.push( Mouse::Event( Mouse::Event::WheelDown,x,y ) );
+	TrimBuffer();
+}
+void Mouse::TrimBuffer()
+{
+	while( buffer.size() > bufferSize )
+	{
+		buffer.pop();
+	}
 }

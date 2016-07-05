@@ -1,8 +1,11 @@
 #pragma once
-#include <d2d1_2.h>
-#include <wrl.h>
+
+#include <vector>
+
 #include <dxgi1_3.h>
+#include <d2d1_2.h>
 #include <d3d11_2.h>
+#include <wrl.h>
 
 #include "Utilities.h"
 #include "AppWindow.h"
@@ -21,6 +24,13 @@ public:
 	comptr<ID2D1Bitmap1> CreateBitmap( const std::wstring &Filename )const;
 	comptr<ID2D1DrawingStateBlock1> CreateDrawingStateBlock()const;
 	comptr<ID2D1SolidColorBrush> CreateSolidColorBrush()const;
+	comptr<ID2D1LinearGradientBrush> CreateLinearGradientBrush(
+		ID2D1GradientStopCollection *pStopCollection,		
+		const Utilities::RectF &BrushRect
+	);
+	comptr<ID2D1GradientStopCollection> CreateGradientStopCollection( 
+		const std::vector<D2D1_GRADIENT_STOP> &Stops );
+
 
 	ID2D1DeviceContext *GetContext()const;
 	IDXGISwapChain1 *GetSwapchain()const;

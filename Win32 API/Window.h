@@ -23,6 +23,7 @@ public:
 		const Utilities::SizeU &WinSize) = 0;
 	virtual void RegisterApp( Application *App ) = 0;
 	virtual BOOL IsCreated()const = 0;
+	virtual Utilities::SizeU Size()const = 0;
 	virtual ~Window()
 	{}
 };

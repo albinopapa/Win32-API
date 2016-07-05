@@ -20,7 +20,7 @@ public:
 private:
 	AppWindow win;
 	Graphics gfx;
-	MouseServer mServ;
+	Mouse mouse;
 	KeyboardServer kServ;
 	Game game;
 };

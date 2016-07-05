@@ -9,7 +9,7 @@
 class Game
 {
 public:
-	Game( Graphics &Gfx, MouseServer &mServ, KeyboardServer &kServ );
+	Game( Graphics &Gfx, Mouse &refMouse, KeyboardServer &kServ );
 	~Game();
 
 	void Go();
@@ -17,7 +17,7 @@ private:
 	void ComposeFrame();
 private:
 	Graphics &gfx;
-	MouseClient mouse;
+	Mouse &mouse;
 	KeyboardClient kbd;
 	Timer t;
 

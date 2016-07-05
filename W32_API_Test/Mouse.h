@@ -1,7 +1,7 @@
 /****************************************************************************************** 
- *	Chili DirectX Framework Version 12.10.21											  *	
- *	Mouse.h																		  *
- *	Copyright 2012 PlanetChili <http://www.planetchili.net>								  *
+ *	Chili DirectX Framework Version 14.03.22											  *	
+ *	Mouse.h																				  *
+ *	Copyright 2014 PlanetChili <http://www.planetchili.net>								  *
  *																						  *
  *	This file is part of The Chili DirectX Framework.									  *
  *																						  *
@@ -19,39 +19,75 @@
  *	along with The Chili DirectX Framework.  If not, see <http://www.gnu.org/licenses/>.  *
  ******************************************************************************************/
 #pragma once
+#include <queue>
 
-class MouseServer;
-
-class MouseClient
+class Mouse
 {
+	friend class System;
 public:
-	MouseClient( const MouseServer& server );
-	int GetMouseX() const;
-	int GetMouseY() const;
+	class Event
+	{
+	public:
+		enum Type
+		{
+			LPress,
+			LRelease,
+			RPress,
+			RRelease,
+			WheelUp,
+			WheelDown,
+			Move,
+			Invalid
+		};
+	private:
+		Type type;
+		int x;
+		int y;
+	public:
+		constexpr Event( Type type,int x,int y )
+			:
+			type( type ),
+			x( x ),
+			y( y )
+		{}
+		constexpr bool IsValid() const
+		{
+			return type != Invalid;
+		}
+		constexpr Type GetType() const
+		{
+			return type;
+		}
+		constexpr std::pair<int,int> GetPos() const
+		{
+			return{ x,y };
+		}
+	};
+public:
+	std::pair<int,int> GetPos() const;
 	bool LeftIsPressed() const;
 	bool RightIsPressed() const;
 	bool IsInWindow() const;
+	Mouse::Event ReadMouse();
+	bool BufferIsEmpty() const;
+	void ClearBuffer();
 private:
-	const MouseServer& server;
-};
-
-class MouseServer
-{
-	friend MouseClient;
-public:
-	MouseServer();
 	void OnMouseMove( int x,int y );
 	void OnMouseLeave();
 	void OnMouseEnter();
-	void OnLeftPressed();
-	void OnLeftReleased();
-	void OnRightPressed();
-	void OnRightReleased();
-	bool IsInWindow() const;
+	void OnLeftPressed( int x,int y );
+	void OnLeftReleased( int x,int y );
+	void OnRightPressed( int x,int y );
+	void OnRightReleased( int x,int y );
+	void OnWheelUp( int x,int y );
+	void OnWheelDown( int x,int y );
+	void TrimBuffer();
 private:
+	static constexpr unsigned int bufferSize = 4u;
 	int x;
 	int y;
-	bool leftIsPressed;
-	bool rightIsPressed;
-	bool isInWindow;
+	bool leftIsPressed = false;
+	bool rightIsPressed = false;
+	bool isInWindow = false;
+	std::queue<Event> buffer;
 };

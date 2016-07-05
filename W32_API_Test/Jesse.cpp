@@ -1,21 +1,30 @@
 #include "Jesse.h"
-
+#include <dinput.h>
 
 
 Jesse::Jesse( Graphics &Gfx )
 	:
+	size( 64, 128 ),
 	stand( L"Images\\Stand\\stand", 1, 1000.0f, Gfx.GetDirect2D() ),
 	run( L"Images\\Run\\run", 15, 18.f, Gfx.GetDirect2D() ),
-	roll( L"Images\\Roll\\roll", 15, 18.f, Gfx.GetDirect2D() ),
-	cur( &stand ),
-	dir(1),
-	move_state(Standing),
-	on_ground(FALSE)
-{}
+	roll( L"Images\\Roll\\roll", 15, 18.f, Gfx.GetDirect2D() )
+{
+	Reset();
+}
 
 
 Jesse::~Jesse()
 {}
+
+void Jesse::Reset()
+{
+	pos.x = 0.f;
+	pos.y = 288.f;
+	SetMoveState( Standing );
+	on_ground = FALSE;
+	force_roll = FALSE;
+	dir = 1;
+}
 
 Utilities::PointF Jesse::GetPosition() const
 {
@@ -24,129 +33,198 @@ Utilities::PointF Jesse::GetPosition() const
 
 void Jesse::Update( const KeyboardClient & Kbd, float FrameTime, const TileMap &Map )
 {
-	cur = &stand;
 	float speed = 6.0f;
-	float grav = 9.8f * 0.16f * 0.16f;
-
+	const float grav = 9.8f * 0.16f * 0.16f;
 	Utilities::PointF accel( 0.0f, grav );
+	BOOL ceil_handled = FALSE,
+		floor_handled = FALSE,
+		wall_handled = FALSE,
+		npass_handled = FALSE;
+	BOOL in_ceiling = FALSE;
 
+	// Cap velocity
+	const float cap_x_speed = speed * 2.0f;
+	vel.x = max( -cap_x_speed, min( cap_x_speed, vel.x ) );
+	vel.y = max( -64.0f, min( 64.0f, vel.y ) );
+
+	// Add velocity to position
+	pos.x += vel.x;
+	pos.y += vel.y;
+
+	MovementState prev_state = move_state;
+
+	// Update state
 	if( Kbd.KeyIsPressed( VK_LEFT ) || Kbd.KeyIsPressed( VK_RIGHT ) )
 	{
-		move_state = Kbd.KeyIsPressed( VK_CONTROL ) ? 
-			Rolling :									// Control button pressed
-			move_state == Standing ?					// Control button not pressed
-			Running										// move_state is Standing	
-			: move_state;								// move_state is not Standing
-
-		cur = move_state == Rolling ? &roll : &run;
 		dir = Kbd.KeyIsPressed( VK_LEFT ) ? -1 : 1;
+		if( Kbd.KeyIsPressed( VK_CONTROL ) )
+		{
+			SetMoveState( Rolling );
+		}
+		else
+		{
+			if( !force_roll )
+			{
+				SetMoveState( Running );
+			}
+		}
 
 		cur->Advance( FrameTime );
-		accel.x += speed * dir;
+		accel.x += on_ground ? speed * dir : ( speed * 0.1f ) * dir;
 	}
 	else
 	{
-		accel.x += move_state == Jumping ? 0.0f : -vel.x;
-
-		move_state = vel.y == 0.0f ?
-			accel.x == 0.0f ?							// vel.y == 0.0f
-			Standing									// accel.x is 0.0f
-			: Running									// accel.x is not 0.0f
-			: move_state;								// vel.y != 0.0f
-	}
-	if( Kbd.KeyIsPressed( VK_SPACE ) )
-	{
 		if( on_ground )
 		{
-			move_state = Jumping;
-			vel.y -= 8.0f;
-			on_ground = FALSE;
+			accel.x += -vel.x;
+			if( accel.x == 0.0f )
+			{
+				if( !force_roll )
+				{
+					SetMoveState( Standing );
+				}
+			}
+		}
+		else
+		{
+			accel.x += -( vel.x * 0.5f );
+		}
+	}
+	if( Kbd.KeyIsPressed( VK_SPACE ) && on_ground )
+	{
+		if( !force_roll )
+		{
+			SetMoveState( Jumping );
 		}
 	}
 
+	// Get collision rect and tiles
 	auto j_clip = GetClipRect();
+	auto tiles = Map.GetClipRects<float>( j_clip );
+	
+	force_roll = force_roll && Map.IsUnderCeilingTiles( 
+		CollisionRect<float>( j_clip.position.x, j_clip.position.y - 30.f, j_clip.size.width, 32.f )
+	) ? TRUE : FALSE;
+
+	auto DoWallCollision = [&]( const cRectU & T_Clip )->void
 	{
-		auto tiles = Map.GetClipRects( j_clip );
-
-		for( auto& tile : tiles )
+		if( !wall_handled )
 		{
-			auto t_clip = tile.GetClipInPixels();
-			auto t_type = tile.GetType();
-
+			if( j_clip.Right() > T_Clip.Left() &&
+				j_clip.Right() < T_Clip.Right() )
 			{
-				switch( t_type )
+				wall_handled = TRUE;
+				j_clip.position.x = T_Clip.Left() - ( j_clip.size.width );
+				accel.x = -vel.x;
+			}
+			else if( j_clip.Left() < T_Clip.Right() &&
+				j_clip.Left() > T_Clip.Left() )
+			{
+				wall_handled = TRUE;
+				j_clip.position.x = T_Clip.Right();
+				accel.x = -vel.x;
+			}
+		}
+	};
+	auto DoCeilingCollision = [&]( const cRectU & T_Clip )->void
+	{
+		if( !ceil_handled )
+		{
+			in_ceiling = TRUE;
+			ceil_handled = TRUE;			
+			if( prev_state == Rolling && move_state != prev_state )
+			{
+				SetMoveState( Rolling );
+				j_clip.size.height = size.height;
+				force_roll = TRUE;
+			}
+			j_clip.position.y = T_Clip.Bottom();
+			accel.y = -vel.y;
+		}
+	};
+	auto DoFloorCollision = [&]( const cRectU &T_Clip )->void
+	{
+		if( !floor_handled )
+		{
+			if( j_clip.Bottom() > T_Clip.Top() &&
+				j_clip.Bottom() < T_Clip.Bottom() &&
+				vel.y >= 0.0f )
+			{
+				if( in_ceiling && move_state == Standing )
 				{
-					case Ceiling:
-					{
-						auto c_type = CheckTopAndBottom( j_clip, t_clip );
-						if( c_type == Top )
-						{
-							j_clip.position.y = t_clip.Bottom();
-							accel.y = -vel.y;
-						}
-						break;
-					}
-					case Floor:
-					{
-						auto c_type = CheckTopAndBottom( j_clip, t_clip );
-						if( c_type == Bottom )
-						{
-							j_clip.position.y = t_clip.position.y - static_cast<int32_t>( j_clip.size.height );
-							accel.y = -vel.y;
-							on_ground = TRUE;
-						}
-						break;
-					}
-					case Wall:
-					{
-						auto c_type = CheckLeftAndRight( j_clip, t_clip );
+					SetMoveState( Rolling );
+					force_roll = TRUE;
+				}
 
-						if( c_type == Left )
-						{
-							if( dir > 0 )
-							{
-								j_clip.position.x = t_clip.position.x - static_cast<int32_t>( j_clip.size.width );
-							}
-							accel.x = -vel.x;
-						}
-						else if( c_type == Right )
-						{
-							j_clip.position.x = t_clip.Right();
-							accel.x = -vel.x;
-						}
-						break;
-					}
-					case NotPassable:
+				floor_handled = TRUE;
+				j_clip.position.y = T_Clip.position.y - j_clip.size.height;
+				accel.y = vel.y > 0.0f ? -vel.y : accel.y;
+				on_ground = TRUE;
+			}
+		}
+	};
+
+	for( auto& tile : tiles )
+	{
+		auto t_clip = tile.GetClipInPixels();
+		auto t_type = tile.GetType();
+				
+		if( CheckCollision( j_clip, t_clip ) )
+		{
+			if( t_type == Wall )
+			{
+				DoWallCollision( t_clip );
+			}
+			if( t_type == Ceiling )
+			{
+				DoCeilingCollision( t_clip );
+			}
+			if( t_type == Floor )
+			{
+				DoFloorCollision( t_clip );
+			}
+			if( t_type == NotPassable )
+			{
+				if( force_roll )
+				{
+					int a = 0;
+				}
+				if( dir > 0 )
+				{
+					auto px = static_cast<int32_t>( j_clip.Right() - t_clip.Left() );
+					auto tpy = static_cast<int32_t>( j_clip.Bottom() - t_clip.Top() );
+					auto bpy = static_cast<int32_t>( j_clip.Top() - t_clip.Bottom() );
+
+					if( px * vel.y > tpy * vel.x )
 					{
-						auto c_type = CheckLeftAndRight( j_clip, t_clip );
+						DoFloorCollision( t_clip );
+					}
+					else if( px * -vel.y > bpy * vel.x && bpy > vel.y )
+					{
+						DoCeilingCollision( t_clip );
+					}
+					else
+					{
+						DoWallCollision( t_clip );
+					}
+				}
+				else
+				{
+					auto px = static_cast<int32_t>( t_clip.Right() - j_clip.Left() );
+					auto tpy = static_cast<int32_t>( j_clip.Bottom() - t_clip.Top() );
+					auto bpy = static_cast<int32_t>( j_clip.Top() - t_clip.Bottom() );
 
-						if( c_type == Top )
-						{
-							j_clip.position.y = t_clip.Bottom();
-							accel.y = -vel.y;
-						}
-						else if( c_type == Bottom )
-						{
-							j_clip.position.y = t_clip.position.y - static_cast<int32_t>( j_clip.size.height );
-							accel.y = -vel.y;
-							on_ground = TRUE;
-						}
-
-						c_type = CheckTopAndBottom( j_clip, t_clip );
-						if( c_type == Left )
-						{
-							if( dir > 0 )
-							{
-								j_clip.position.x = t_clip.position.x - static_cast<int32_t>( j_clip.size.width );
-							}
-							accel.x = -vel.x;
-						}
-						else if( c_type == Right )
-						{
-							j_clip.position.x = t_clip.Right();
-							accel.x = -vel.x;
-						}
-						break;
+					if( px * vel.y > tpy * -vel.x )
+					{
+						DoFloorCollision( t_clip );
+					}
+					else if( px * -vel.y > bpy * -vel.x && bpy > vel.y )
+					{
+						DoCeilingCollision( t_clip );
+					}
+					else
+					{
+						DoWallCollision( t_clip );
 					}
 				}
 			}
@@ -154,25 +232,17 @@ void Jesse::Update( const KeyboardClient & Kbd, float FrameTime, const TileMap &
 	}
 
 	// Update position
-	pos.x = static_cast<float>( j_clip.position.x - static_cast<int32_t>( j_clip.size.width / 2 ) );
-	pos.y = static_cast<float>( j_clip.position.y );
+	pos.x = j_clip.position.x - ( j_clip.size.width * 0.5f );
+	pos.y = move_state != Rolling ? j_clip.position.y : j_clip.position.y - j_clip.size.height;
 
 	// Add acceleration to velocity
 	vel.x += accel.x;
 	vel.y += accel.y;
 
-	// Cap velocity
-	vel.x = max( -speed, min( speed, vel.x ) );
-	vel.y = max( -64.0f, min( 64.0f, vel.y ) );
-	
-	// Add velocity to position
-	pos.x += vel.x;
-	pos.y += vel.y;
-
 	// Clamp sprite to world coordinates
 	auto bounds = Map.GetWorldBounds();
-	auto bounds_right = bounds.Right() - 1 - j_clip.size.width;
-	auto bounds_bottom = bounds.Bottom() - 1 - j_clip.size.height;
+	auto bounds_right = bounds.Right() - (j_clip.size.width * 2.f);
+	auto bounds_bottom = bounds.Bottom() - (j_clip.size.height);
 
 	pos.x = max( bounds.position.x, min( bounds_right, pos.x ) );
 	pos.y = max( bounds.position.y, min( bounds_bottom, pos.y ) );
@@ -193,52 +263,55 @@ void Jesse::Draw( const Camera &Cam, Graphics & Gfx )
 	}
 }
 
-Jesse::CollisionType Jesse::CheckTopAndBottom( const Utilities::RectU &J_Clip,
-	const Utilities::RectU &T_Clip ) const
+void Jesse::SetMoveState( MovementState State )
 {
-	CollisionType type = None;
-	uint32_t j_top = J_Clip.position.y;
-	uint32_t j_bottom = J_Clip.Bottom();
-	uint32_t t_top = T_Clip.position.y;
-	uint32_t t_bottom = T_Clip.Bottom();
-
-	if( j_top > t_top  && j_top < t_bottom)
+	if( move_state != State )
 	{
-		type = Top;
-	}
-	else if( j_bottom > t_top  && j_bottom < t_bottom )
-	{
-		type = Bottom;
-	}
+		move_state = State;
+		size.height = 128;
 
-	return type;
+		switch( move_state )
+		{
+			case Standing:
+				cur = &stand;
+				break;
+			case Running:
+				cur = &run;
+				break;
+			case Rolling:
+				cur = &roll;
+				size.height = 64;
+				break;
+			case Jumping:
+				vel.y -= 9.0f;
+				on_ground = FALSE;
+				break;
+		}
+
+		cur->ResetAnimation();
+	}
 }
 
-Jesse::CollisionType Jesse::CheckLeftAndRight( const Utilities::RectU &J_Clip,
-	const Utilities::RectU &T_Clip ) const
+BOOL Jesse::CheckCollision( const CollisionRect<float>& J_Clip, const CollisionRect<uint32_t>& T_Clip ) const
 {
-	CollisionType type = None;
-	uint32_t j_left = J_Clip.position.x;
-	uint32_t j_right = J_Clip.Right();
-	uint32_t t_left = T_Clip.position.x;
-	uint32_t t_right = T_Clip.Right();
+	BOOL collide =
+		J_Clip.Right() > T_Clip.Left() &&
+		J_Clip.Left() < T_Clip.Right() &&
+		J_Clip.Bottom() > T_Clip.Top() &&
+		J_Clip.Top() < T_Clip.Bottom();
 
-	if( j_left > t_left && j_left < t_right )
-	{
-		type = Left;
-	}
-	if( j_right > t_left && j_right < t_right )
-	{
-		type = Right;
-	}
-
-	return type;
+	return collide;
 }
 
-Utilities::RectU Jesse::GetClipRect() const
+CollisionRect<float> Jesse::GetClipRect() const
 {
-	return Utilities::RectU( Utilities::PointU(
-		static_cast<uint32_t>( pos.x + 32.0f + 0.5f ),
-		static_cast<uint32_t>( pos.y + 0.5f ) ),
-		Utilities::SizeU( 64, 128 ) );
+	CollisionRect<float> rect;
+
+	rect.size.width = size.width;
+	rect.size.height = size.height;
+
+	rect.position.x = pos.x + 32.f;
+	rect.position.y = pos.y + ( 128.f - rect.size.height );
+
+	return rect;
 }

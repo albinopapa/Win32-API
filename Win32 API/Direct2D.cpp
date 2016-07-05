@@ -2,7 +2,6 @@
 #include "WIC.h"
 #include <d3d11_2.h>
 
-
 Direct2D::Direct2D( const AppWindow &Win )
 {
 	comptr<IDXGIDevice> dxgi_device;
@@ -48,7 +47,7 @@ Direct2D::Direct2D( const AppWindow &Win )
 	assert( SUCCEEDED( hr ) );
 
 	D2D1_PIXEL_FORMAT pix_format =
-		D2D1::PixelFormat( DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE );
+		D2D1::PixelFormat( DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED );
 	
 	D2D1_BITMAP_OPTIONS options = 
 		D2D1_BITMAP_OPTIONS_CANNOT_DRAW | D2D1_BITMAP_OPTIONS_TARGET;
@@ -61,7 +60,6 @@ Direct2D::Direct2D( const AppWindow &Win )
 
 	context->SetTarget( render_target.Get() );
 }
-
 
 Direct2D::~Direct2D()
 {}
@@ -78,7 +76,7 @@ comptr<ID2D1Bitmap1> Direct2D::CreateBitmap( const std::wstring &Filename )const
 	);
 	assert( SUCCEEDED( hr ) );
 
-	return std::move(bitmap);
+	return bitmap;
 }
 
 comptr<ID2D1DrawingStateBlock1> Direct2D::CreateDrawingStateBlock() const
@@ -93,6 +91,29 @@ comptr<ID2D1SolidColorBrush> Direct2D::CreateSolidColorBrush()const
 	comptr<ID2D1SolidColorBrush> brush;
 	context->CreateSolidColorBrush( D2D1::ColorF( D2D1::ColorF::Black ), brush.GetAddressOf() );
 	return std::move( brush );
+}
+
+comptr<ID2D1LinearGradientBrush> Direct2D::CreateLinearGradientBrush(
+	ID2D1GradientStopCollection *pStopCollection, 
+	const Utilities::RectF &BrushRect )
+{
+	comptr<ID2D1LinearGradientBrush> lingrad_brush;
+	D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES props{};
+	props.startPoint = D2D1::Point2F( BrushRect.Left(), BrushRect.Top() );
+	props.endPoint = D2D1::Point2F( BrushRect.Right(), BrushRect.Bottom() );
+	context->CreateLinearGradientBrush( props, pStopCollection, lingrad_brush.GetAddressOf() );
+
+	return lingrad_brush;
+}
+
+comptr<ID2D1GradientStopCollection> Direct2D::CreateGradientStopCollection(
+	const std::vector<D2D1_GRADIENT_STOP> &Stops )
+{
+	comptr<ID2D1GradientStopCollection> pStopCollection;
+	context->CreateGradientStopCollection( Stops.data(), Stops.size(),
+		pStopCollection.GetAddressOf() );
+
+	return pStopCollection;
 }
 
 ID2D1DeviceContext *Direct2D::GetContext() const

@@ -2,13 +2,13 @@
 
 
 
-Game::Game( Graphics &Gfx, MouseServer &mServ, KeyboardServer &kServ )
+Game::Game( Graphics &Gfx, Mouse &refMouse, KeyboardServer &kServ )
 	:
 	gfx( Gfx ),
-	mouse( mServ ),
+	mouse( refMouse ),
 	kbd( kServ ),
 	jess( gfx ),
-	map( L"Maps/test.txt" ),
+	map( L"Maps/level0000.txt" ),
 	cam( Utilities::PointF(), Utilities::SizeU( 800, 600 ) )
 {}
 
@@ -22,16 +22,27 @@ void Game::Go()
 	float dt = t.GetMilli();
 	t.Start();
 
+	auto world_bounds = map.GetWorldBounds();
 	jess.Update( kbd, dt, map );
-	cam.Update( map.GetWorldBounds(), jess.GetPosition() );
+	cam.Update( world_bounds, jess.GetPosition() );
 
-	gfx.BeginFrame( D2D1::ColorF( D2D1::ColorF::Navy ) );
+	auto j_rect = jess.GetClipRect();
+
+	if( j_rect.Bottom() >= world_bounds.Bottom() )
+	{
+
+		jess.Reset();
+	}
+
+	gfx.BeginFrame( 0x007FFFu );
 	ComposeFrame();
 	gfx.EndFrame();
 }
 
 void Game::ComposeFrame()
 {
+	gfx.DrawGradientRect( Utilities::RectF( 0.f, 0.f, 800.f, 600.f ),
+		D2D1::ColorF::White, D2D1::ColorF::White );
 	map.Draw( cam, gfx );
 	jess.Draw( cam, gfx );
 }
